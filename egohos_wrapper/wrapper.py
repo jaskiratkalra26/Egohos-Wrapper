@@ -67,7 +67,7 @@ class EgoHOSWrapper:
                 
             # For subprocesses we need to ensure the correct python is used.
             # Use the isolated venv created specifically for EgoHOS to prevent torch version conflicts
-            python_exec = str(self.egohos_repo_dir.parent.parent / "venv_egohos" / "bin" / "python")
+            python_exec = str(self.egohos_repo_dir.parent.parent.parent / "venv_egohos" / "bin" / "python")
             if not os.path.exists(python_exec):
                 # Fallback for Windows or if running locally without venv_egohos
                 python_exec = "python"
