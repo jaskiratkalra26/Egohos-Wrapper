@@ -27,7 +27,7 @@ pip install mmcv-full==1.7.0 -f https://download.openmmlab.com/mmcv/dist/cu117/t
 echo "Installing MMSegmentation..."
 cd EgoHOS/mmsegmentation
 # Patch the hardcoded mmcv max version to allow 1.7.0
-sed -i "s/mmcv_maximum_version = '1.6.0'/mmcv_maximum_version = '1.8.0'/g" mmseg/__init__.py
+sed -i "s/mmcv_maximum_version.*/mmcv_maximum_version = '1.8.0'/g" mmseg/__init__.py
 pip install -v -e .
 cd ../..
 
