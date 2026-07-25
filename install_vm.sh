@@ -20,7 +20,6 @@ pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --e
 # 3. Install Python dependencies (with fixed numpy version to avoid np.bool crash)
 echo "Installing Python dependencies..."
 pip install -r EgoHOS/requirements.txt
-pip install "numpy<1.24.0"  # CRITICAL FIX for mmsegmentation np.bool errors
 pip install -U openmim
 pip install mmcv-full==1.7.0 -f https://download.openmmlab.com/mmcv/dist/cu117/torch1.13.0/index.html
 
@@ -31,6 +30,9 @@ cd EgoHOS/mmsegmentation
 sed -i "s/mmcv_maximum_version = '1.7.0'/mmcv_maximum_version = '1.8.0'/g" mmseg/__init__.py
 pip install -v -e .
 cd ../..
+
+# CRITICAL: Force numpy downgrade at the very end so other packages don't sneakily upgrade it
+pip install "numpy<1.24.0"
 
 # 5. Download Checkpoints (Weights)
 echo "Downloading EgoHOS Model Weights..."
