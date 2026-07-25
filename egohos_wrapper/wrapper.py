@@ -28,7 +28,7 @@ class EgoHOSWrapper:
         if not self.mmseg_dir.exists():
             raise ValueError(f"mmsegmentation dir not found in {self.egohos_repo_dir}")
 
-    def infer_video(self, video_path: str, frame_stride: int = 1):
+    def infer_video(self, video_path: str, frame_stride: int = 1, max_frames: int = None):
         """
         Extracts frames to a temp directory, runs EgoHOS (all modes), and yields masks per frame.
         """
@@ -44,6 +44,8 @@ class EgoHOSWrapper:
             frame_idx = 0
             frame_indices = []
             while True:
+                if max_frames is not None and frame_idx >= max_frames:
+                    break
                 ret, frame = cap.read()
                 if not ret:
                     break
