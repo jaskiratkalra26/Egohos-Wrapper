@@ -22,7 +22,7 @@ echo "Installing Python dependencies..."
 pip install -r EgoHOS/requirements.txt
 pip install "numpy<1.24.0"  # CRITICAL FIX for mmsegmentation np.bool errors
 pip install -U openmim
-mim install mmcv-full==1.7.0
+pip install mmcv-full==1.7.0 -f https://download.openmmlab.com/mmcv/dist/cu117/torch1.13.0/index.html
 
 # 4. Install MMSegmentation
 echo "Installing MMSegmentation..."
