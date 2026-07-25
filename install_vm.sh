@@ -13,20 +13,22 @@ else
     echo "EgoHOS directory already exists, skipping clone."
 fi
 
-# 2. Install PyTorch explicitly first (to match MMCV 1.6.0 constraints)
+# 2. Install PyTorch explicitly first (upgraded to 1.13.1+cu117 for Ada Lovelace / L4 GPU support)
 echo "Installing compatible PyTorch version..."
-pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
+pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
 
 # 3. Install Python dependencies (with fixed numpy version to avoid np.bool crash)
 echo "Installing Python dependencies..."
 pip install -r EgoHOS/requirements.txt
 pip install "numpy<1.24.0"  # CRITICAL FIX for mmsegmentation np.bool errors
 pip install -U openmim
-mim install mmcv-full==1.6.0
+mim install mmcv-full==1.7.0
 
 # 4. Install MMSegmentation
 echo "Installing MMSegmentation..."
 cd EgoHOS/mmsegmentation
+# Patch the hardcoded mmcv max version to allow 1.7.0
+sed -i "s/mmcv_maximum_version = '1.7.0'/mmcv_maximum_version = '1.8.0'/g" mmseg/__init__.py
 pip install -v -e .
 cd ../..
 
