@@ -27,8 +27,9 @@ pip install mmcv-full==1.7.0 -f https://download.openmmlab.com/mmcv/dist/cu117/t
 # 4. Install MMSegmentation
 echo "Installing MMSegmentation..."
 cd EgoHOS/mmsegmentation
-# Patch the hardcoded mmcv max version to allow 1.7.0
+# Patch the hardcoded mmcv max version to allow 1.7.0 and import torch first
 sed -i "s/MMCV_MAX = .*/MMCV_MAX = '1.8.0'/g" mmseg/__init__.py
+sed -i "1s/^/import torch\n/" predict_image.py
 pip install -v -e .
 cd ../..
 

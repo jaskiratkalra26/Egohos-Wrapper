@@ -74,6 +74,13 @@ class EgoHOSWrapper:
                 # Fallback for Windows or if running locally without venv_egohos
                 python_exec = "python"
                 
+            # Auto-patch predict_image.py to import torch before mmseg if needed
+            predict_py = self.mmseg_dir / "predict_image.py"
+            if predict_py.exists():
+                content = predict_py.read_text()
+                if not content.lstrip().startswith("import torch"):
+                    predict_py.write_text("import torch  # Pre-load PyTorch CUDA libraries\n" + content)
+
             commands = [
                 [python_exec, "predict_image.py", "--config_file", self.cfg_twohands, "--checkpoint_file", self.ckpt_twohands, "--img_dir", str(frames_dir), "--pred_seg_dir", str(out_twohands)],
                 [python_exec, "predict_image.py", "--config_file", self.cfg_cb, "--checkpoint_file", self.ckpt_cb, "--img_dir", str(frames_dir), "--pred_seg_dir", str(out_cb)],
