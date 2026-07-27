@@ -16,6 +16,7 @@ fi
 # 2. Install PyTorch explicitly first (upgraded to 1.13.1+cu117 for Ada Lovelace / L4 GPU support)
 echo "Installing compatible PyTorch version..."
 pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
+pip install nvidia-cuda-runtime-cu11
 
 # 3. Install Python dependencies (with fixed numpy version to avoid np.bool crash)
 echo "Installing Python dependencies..."
@@ -27,7 +28,7 @@ pip install mmcv-full==1.7.0 -f https://download.openmmlab.com/mmcv/dist/cu117/t
 echo "Installing MMSegmentation..."
 cd EgoHOS/mmsegmentation
 # Patch the hardcoded mmcv max version to allow 1.7.0
-sed -i "s/mmcv_maximum_version.*/mmcv_maximum_version = '1.8.0'/g" mmseg/__init__.py
+sed -i "s/MMCV_MAX = .*/MMCV_MAX = '1.8.0'/g" mmseg/__init__.py
 pip install -v -e .
 cd ../..
 

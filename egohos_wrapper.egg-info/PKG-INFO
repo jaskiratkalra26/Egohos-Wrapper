@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: egohos_wrapper
+Version: 0.1.0
+Summary: A wrapper and post-processor for EgoHOS to fix mask leakages and support frame skipping.
+Author: Jaskirat Kalra
+Requires-Python: >=3.7
+Requires-Dist: opencv-python
+Requires-Dist: numpy
+Dynamic: author
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

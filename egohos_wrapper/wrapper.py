@@ -81,8 +81,16 @@ class EgoHOSWrapper:
                 [python_exec, "predict_image.py", "--config_file", self.cfg_obj2, "--checkpoint_file", self.ckpt_obj2, "--img_dir", str(frames_dir), "--pred_seg_dir", str(out_obj2)]
             ]
             
+            env = os.environ.copy()
+            venv_dir = self.egohos_repo_dir.parent.parent.parent / "venv_egohos"
+            cuda_lib_paths = list(venv_dir.glob("lib/python*/site-packages/nvidia/*/lib"))
+            torch_lib_paths = list(venv_dir.glob("lib/python*/site-packages/torch/lib"))
+            extra_paths = [str(p) for p in cuda_lib_paths + torch_lib_paths if p.exists()]
+            if extra_paths:
+                env["LD_LIBRARY_PATH"] = f"{':'.join(extra_paths)}:{env.get('LD_LIBRARY_PATH', '')}"
+
             for cmd in commands:
-                subprocess.run(cmd, cwd=str(self.mmseg_dir), check=True)
+                subprocess.run(cmd, cwd=str(self.mmseg_dir), check=True, env=env)
             
             # 3. Yield masks
             for idx in frame_indices:

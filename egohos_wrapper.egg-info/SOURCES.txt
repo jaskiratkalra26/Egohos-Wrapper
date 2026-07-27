@@ -1,0 +1,10 @@
+README.md
+setup.py
+egohos_wrapper/__init__.py
+egohos_wrapper/pipeline.py
+egohos_wrapper/postprocessor.py
+egohos_wrapper.egg-info/PKG-INFO
+egohos_wrapper.egg-info/SOURCES.txt
+egohos_wrapper.egg-info/dependency_links.txt
+egohos_wrapper.egg-info/requires.txt
+egohos_wrapper.egg-info/top_level.txt
