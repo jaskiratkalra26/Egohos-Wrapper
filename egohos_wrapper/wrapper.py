@@ -91,6 +91,7 @@ class EgoHOSWrapper:
             env = os.environ.copy()
             # Dynamically query torch and nvidia paths from the venv's python
             extra_paths = []
+            torch_lib = ""
             
             # 1. Get torch/lib path
             try:
@@ -98,6 +99,18 @@ class EgoHOSWrapper:
                 torch_lib = res_torch.stdout.strip()
                 if os.path.isdir(torch_lib):
                     extra_paths.append(torch_lib)
+                    
+                    # WORKAROUND: If mmcv expects libtorch_cuda_cu.so (PyTorch 1.12) but we are on PyTorch 1.13
+                    # where it was merged into libtorch_cuda.so, we create a symlink to satisfy the loader.
+                    cu_so = os.path.join(torch_lib, "libtorch_cuda_cu.so")
+                    cuda_so = os.path.join(torch_lib, "libtorch_cuda.so")
+                    if not os.path.exists(cu_so) and os.path.exists(cuda_so):
+                        try:
+                            os.symlink(cuda_so, cu_so)
+                            print(f"EgoHOSWrapper: Created symlink {cu_so} -> {cuda_so}")
+                        except Exception as e:
+                            print(f"EgoHOSWrapper: Failed to create symlink: {e}")
+                            
             except Exception as e:
                 print(f"Warning: Failed to dynamically query torch path: {e}")
                 
@@ -119,6 +132,17 @@ class EgoHOSWrapper:
             
             if extra_paths:
                 env["LD_LIBRARY_PATH"] = f"{':'.join(extra_paths)}:{env.get('LD_LIBRARY_PATH', '')}"
+                
+                # Double-check preloading just in case Python hides LD_LIBRARY_PATH
+                preload = []
+                if torch_lib:
+                    for lib in ["libtorch_python.so", "libtorch_cuda_cu.so", "libtorch_cuda.so", "libc10_cuda.so"]:
+                        lpath = os.path.join(torch_lib, lib)
+                        if os.path.exists(lpath):
+                            preload.append(lpath)
+                if preload:
+                    env["LD_PRELOAD"] = f"{' '.join(preload)} {env.get('LD_PRELOAD', '')}".strip()
+                    print(f"EgoHOSWrapper: Injected LD_PRELOAD with: {preload}")
 
             for cmd in commands:
                 subprocess.run(cmd, cwd=str(self.mmseg_dir), check=True, env=env)
