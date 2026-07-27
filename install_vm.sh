@@ -13,9 +13,9 @@ else
     echo "EgoHOS directory already exists, skipping clone."
 fi
 
-# 2. Install PyTorch explicitly first (upgraded to 1.13.1+cu117 for Ada Lovelace / L4 GPU support)
+# 2. Install PyTorch explicitly first (upgraded to 1.13.0+cu117 for Ada Lovelace / L4 GPU support)
 echo "Installing compatible PyTorch version..."
-pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
+pip install torch==1.13.0+cu117 torchvision==0.14.0+cu117 torchaudio==0.13.0 --extra-index-url https://download.pytorch.org/whl/cu117
 pip install nvidia-cuda-runtime-cu11
 
 # 3. Install Python dependencies (with fixed numpy version to avoid np.bool crash)
