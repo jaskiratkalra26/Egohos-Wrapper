@@ -100,16 +100,19 @@ class EgoHOSWrapper:
                 if os.path.isdir(torch_lib):
                     extra_paths.append(torch_lib)
                     
-                    # WORKAROUND: If mmcv expects libtorch_cuda_cu.so (PyTorch 1.12) but we are on PyTorch 1.13
-                    # where it was merged into libtorch_cuda.so, we create a symlink to satisfy the loader.
-                    cu_so = os.path.join(torch_lib, "libtorch_cuda_cu.so")
+                    # WORKAROUND: If mmcv expects libtorch_cuda_cu.so / libtorch_cuda_cpp.so (PyTorch 1.12) 
+                    # but we are on PyTorch 1.13 where they were merged into libtorch_cuda.so, 
+                    # we create symlinks to satisfy the loader.
                     cuda_so = os.path.join(torch_lib, "libtorch_cuda.so")
-                    if not os.path.exists(cu_so) and os.path.exists(cuda_so):
-                        try:
-                            os.symlink(cuda_so, cu_so)
-                            print(f"EgoHOSWrapper: Created symlink {cu_so} -> {cuda_so}")
-                        except Exception as e:
-                            print(f"EgoHOSWrapper: Failed to create symlink: {e}")
+                    if os.path.exists(cuda_so):
+                        for lib_name in ["libtorch_cuda_cu.so", "libtorch_cuda_cpp.so"]:
+                            missing_so = os.path.join(torch_lib, lib_name)
+                            if not os.path.exists(missing_so):
+                                try:
+                                    os.symlink(cuda_so, missing_so)
+                                    print(f"EgoHOSWrapper: Created symlink {missing_so} -> {cuda_so}")
+                                except Exception as e:
+                                    print(f"EgoHOSWrapper: Failed to create symlink {missing_so}: {e}")
                             
             except Exception as e:
                 print(f"Warning: Failed to dynamically query torch path: {e}")
@@ -136,7 +139,7 @@ class EgoHOSWrapper:
                 # Double-check preloading just in case Python hides LD_LIBRARY_PATH
                 preload = []
                 if torch_lib:
-                    for lib in ["libtorch_python.so", "libtorch_cuda_cu.so", "libtorch_cuda.so", "libc10_cuda.so"]:
+                    for lib in ["libtorch_python.so", "libtorch_cuda_cpp.so", "libtorch_cuda_cu.so", "libtorch_cuda.so", "libc10_cuda.so"]:
                         lpath = os.path.join(torch_lib, lib)
                         if os.path.exists(lpath):
                             preload.append(lpath)
