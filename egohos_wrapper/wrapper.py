@@ -89,10 +89,34 @@ class EgoHOSWrapper:
             ]
             
             env = os.environ.copy()
-            venv_dir = self.egohos_repo_dir.parent.parent.parent / "venv_egohos"
-            cuda_lib_paths = list(venv_dir.glob("lib/python*/site-packages/nvidia/*/lib"))
-            torch_lib_paths = list(venv_dir.glob("lib/python*/site-packages/torch/lib"))
-            extra_paths = [str(p) for p in cuda_lib_paths + torch_lib_paths if p.exists()]
+            # Dynamically query torch and nvidia paths from the venv's python
+            extra_paths = []
+            
+            # 1. Get torch/lib path
+            try:
+                res_torch = subprocess.run([python_exec, "-c", "import os, torch; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))"], capture_output=True, text=True, check=True)
+                torch_lib = res_torch.stdout.strip()
+                if os.path.isdir(torch_lib):
+                    extra_paths.append(torch_lib)
+            except Exception as e:
+                print(f"Warning: Failed to dynamically query torch path: {e}")
+                
+            # 2. Get nvidia/lib paths (some pip versions put cuda libs in nvidia package)
+            try:
+                res_nvidia = subprocess.run([python_exec, "-c", "import os, site; print(site.getsitepackages()[0])"], capture_output=True, text=True, check=True)
+                site_packages = res_nvidia.stdout.strip()
+                nvidia_dir = os.path.join(site_packages, "nvidia")
+                if os.path.isdir(nvidia_dir):
+                    for subdir in os.listdir(nvidia_dir):
+                        n_lib = os.path.join(nvidia_dir, subdir, "lib")
+                        if os.path.isdir(n_lib):
+                            extra_paths.append(n_lib)
+            except Exception:
+                pass
+            
+            # Print for debugging
+            print(f"EgoHOSWrapper: Injected LD_LIBRARY_PATH with: {extra_paths}")
+            
             if extra_paths:
                 env["LD_LIBRARY_PATH"] = f"{':'.join(extra_paths)}:{env.get('LD_LIBRARY_PATH', '')}"
 
