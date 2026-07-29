@@ -147,15 +147,21 @@ class EgoHOSWrapper:
                     env["LD_PRELOAD"] = f"{' '.join(preload)} {env.get('LD_PRELOAD', '')}".strip()
                     print(f"EgoHOSWrapper: Injected LD_PRELOAD with: {preload}")
 
-            processes = []
-            for cmd in commands:
-                p = subprocess.Popen(cmd, cwd=str(self.mmseg_dir), env=env)
-                processes.append(p)
-                
-            for p in processes:
-                p.wait()
-                if p.returncode != 0:
-                    raise RuntimeError(f"EgoHOS subprocess failed with return code {p.returncode}")
+            # 1. twohands pass (must be first, creates pred_twohands)
+            res = subprocess.run(commands[0], cwd=str(self.mmseg_dir), env=env)
+            if res.returncode != 0: raise RuntimeError("EgoHOS twohands subprocess failed")
+            
+            # 2. cb pass (depends on pred_twohands)
+            res = subprocess.run(commands[1], cwd=str(self.mmseg_dir), env=env)
+            if res.returncode != 0: raise RuntimeError("EgoHOS cb subprocess failed")
+            
+            # 3. obj1 and obj2 passes (can run in parallel, depend on twohands and cb)
+            p1 = subprocess.Popen(commands[2], cwd=str(self.mmseg_dir), env=env)
+            p2 = subprocess.Popen(commands[3], cwd=str(self.mmseg_dir), env=env)
+            
+            p1.wait(); p2.wait()
+            if p1.returncode != 0 or p2.returncode != 0:
+                raise RuntimeError("EgoHOS obj1 or obj2 subprocess failed")
             
             # 3. Yield masks
             for idx in frame_indices:
