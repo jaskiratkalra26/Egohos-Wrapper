@@ -147,8 +147,15 @@ class EgoHOSWrapper:
                     env["LD_PRELOAD"] = f"{' '.join(preload)} {env.get('LD_PRELOAD', '')}".strip()
                     print(f"EgoHOSWrapper: Injected LD_PRELOAD with: {preload}")
 
+            processes = []
             for cmd in commands:
-                subprocess.run(cmd, cwd=str(self.mmseg_dir), check=True, env=env)
+                p = subprocess.Popen(cmd, cwd=str(self.mmseg_dir), env=env)
+                processes.append(p)
+                
+            for p in processes:
+                p.wait()
+                if p.returncode != 0:
+                    raise RuntimeError(f"EgoHOS subprocess failed with return code {p.returncode}")
             
             # 3. Yield masks
             for idx in frame_indices:
