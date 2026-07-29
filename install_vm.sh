@@ -20,6 +20,7 @@ pip install nvidia-cuda-runtime-cu11
 
 # 3. Install Python dependencies (with fixed numpy version to avoid np.bool crash)
 echo "Installing Python dependencies..."
+sed -i -E '/^(torch|torchvision)==/d' EgoHOS/requirements.txt
 pip install -r EgoHOS/requirements.txt
 pip install -U openmim
 pip install mmcv-full==1.7.0 -f https://download.openmmlab.com/mmcv/dist/cu117/torch1.13.0/index.html
