@@ -6,6 +6,10 @@ import shutil
 from pathlib import Path
 import numpy as np
 
+EGOHOS_SHORT = int(os.environ.get("MYTRON_EGOHOS_SHORT", "512"))
+JPEG_QUALITY = int(os.environ.get("MYTRON_JPEG_QUALITY", "95"))
+USE_RAMDISK = os.path.exists("/dev/shm")
+
 class EgoHOSWrapper:
     def __init__(self, egohos_repo_dir: str):
         self.egohos_repo_dir = Path(egohos_repo_dir)
@@ -34,24 +38,50 @@ class EgoHOSWrapper:
         """
         input_path = Path(video_path).resolve()
         
-        with tempfile.TemporaryDirectory() as temp_dir:
+        # Use RAM disk if available - zero SSD I/O
+        tmp_root = "/dev/shm" if USE_RAMDISK else None
+        
+        with tempfile.TemporaryDirectory(dir=tmp_root) as temp_dir:
             temp_dir = Path(temp_dir)
             frames_dir = temp_dir / "images"
             frames_dir.mkdir()
             
-            # 1. Extract frames
+            # 1. Extract frames - RESIZED
             cap = cv2.VideoCapture(str(input_path))
+            cap.set(cv2.CAP_PROP_HW_ACCELERATION, 1)
+            
             frame_idx = 0
             frame_indices = []
+            orig_h, orig_w = None, None
+            scales = {}
+            
             while True:
                 if max_frames is not None and frame_idx >= max_frames:
                     break
                 ret, frame = cap.read()
                 if not ret:
                     break
+                    
+                if orig_h is None:
+                    orig_h, orig_w = frame.shape[:2]
+                
                 if frame_idx % frame_stride == 0:
-                    cv2.imwrite(str(frames_dir / f"{frame_idx:08d}.jpg"), frame)
+                    h, w = frame.shape[:2]
+                    scale = EGOHOS_SHORT / min(h, w)
+                    if scale < 1.0:
+                        new_w = int(w * scale)
+                        new_h = int(h * scale)
+                        frame_small = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                    else:
+                        frame_small = frame
+                        scale = 1.0
+                    
+                    cv2.imwrite(str(frames_dir / f"{frame_idx:08d}.jpg"), 
+                                frame_small, 
+                                [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
                     frame_indices.append(frame_idx)
+                    scales[frame_idx] = scale
+                    
                 frame_idx += 1
             cap.release()
             
@@ -74,18 +104,14 @@ class EgoHOSWrapper:
                 # Fallback for Windows or if running locally without venv_egohos
                 python_exec = "python"
                 
-            # Auto-patch predict_image.py to import torch before mmseg if needed
-            predict_py = self.mmseg_dir / "predict_image.py"
-            if predict_py.exists():
-                content = predict_py.read_text()
-                if not content.lstrip().startswith("import torch"):
-                    predict_py.write_text("import torch  # Pre-load PyTorch CUDA libraries\n" + content)
 
             commands = [
-                [python_exec, "predict_image.py", "--config_file", self.cfg_twohands, "--checkpoint_file", self.ckpt_twohands, "--img_dir", str(frames_dir), "--pred_seg_dir", str(out_twohands)],
-                [python_exec, "predict_image.py", "--config_file", self.cfg_cb, "--checkpoint_file", self.ckpt_cb, "--img_dir", str(frames_dir), "--pred_seg_dir", str(out_cb)],
-                [python_exec, "predict_image.py", "--config_file", self.cfg_obj1, "--checkpoint_file", self.ckpt_obj1, "--img_dir", str(frames_dir), "--pred_seg_dir", str(out_obj1)],
-                [python_exec, "predict_image.py", "--config_file", self.cfg_obj2, "--checkpoint_file", self.ckpt_obj2, "--img_dir", str(frames_dir), "--pred_seg_dir", str(out_obj2)]
+                [python_exec, "predict_all.py",
+                 "--img_dir", str(frames_dir),
+                 "--cfg_twohands", self.cfg_twohands, "--ckpt_twohands", self.ckpt_twohands, "--out_twohands", str(out_twohands),
+                 "--cfg_cb", self.cfg_cb, "--ckpt_cb", self.ckpt_cb, "--out_cb", str(out_cb),
+                 "--cfg_obj1", self.cfg_obj1, "--ckpt_obj1", self.ckpt_obj1, "--out_obj1", str(out_obj1),
+                 "--cfg_obj2", self.cfg_obj2, "--ckpt_obj2", self.ckpt_obj2, "--out_obj2", str(out_obj2)]
             ]
             
             env = os.environ.copy()
@@ -147,21 +173,9 @@ class EgoHOSWrapper:
                     env["LD_PRELOAD"] = f"{' '.join(preload)} {env.get('LD_PRELOAD', '')}".strip()
                     print(f"EgoHOSWrapper: Injected LD_PRELOAD with: {preload}")
 
-            # 1. twohands pass (must be first, creates pred_twohands)
+            # 1. Run all 4 models sequentially in a single process
             res = subprocess.run(commands[0], cwd=str(self.mmseg_dir), env=env)
-            if res.returncode != 0: raise RuntimeError("EgoHOS twohands subprocess failed")
-            
-            # 2. cb pass (depends on pred_twohands)
-            res = subprocess.run(commands[1], cwd=str(self.mmseg_dir), env=env)
-            if res.returncode != 0: raise RuntimeError("EgoHOS cb subprocess failed")
-            
-            # 3. obj1 and obj2 passes (can run in parallel, depend on twohands and cb)
-            p1 = subprocess.Popen(commands[2], cwd=str(self.mmseg_dir), env=env)
-            p2 = subprocess.Popen(commands[3], cwd=str(self.mmseg_dir), env=env)
-            
-            p1.wait(); p2.wait()
-            if p1.returncode != 0 or p2.returncode != 0:
-                raise RuntimeError("EgoHOS obj1 or obj2 subprocess failed")
+            if res.returncode != 0: raise RuntimeError("EgoHOS predict_all.py subprocess failed")
             
             # 3. Yield masks
             for idx in frame_indices:
@@ -181,6 +195,12 @@ class EgoHOSWrapper:
                 # If any missing (shouldn't happen unless inference failed), yield empty
                 if mask_twohands is None:
                     continue
+                    
+                if (orig_h, orig_w) != mask_twohands.shape[:2]:
+                    mask_twohands = cv2.resize(mask_twohands, (orig_w, orig_h), interpolation=cv2.INTER_NEAREST)
+                    mask_cb = cv2.resize(mask_cb, (orig_w, orig_h), interpolation=cv2.INTER_NEAREST) if mask_cb is not None else None
+                    mask_obj1 = cv2.resize(mask_obj1, (orig_w, orig_h), interpolation=cv2.INTER_NEAREST) if mask_obj1 is not None else None
+                    mask_obj2 = cv2.resize(mask_obj2, (orig_w, orig_h), interpolation=cv2.INTER_NEAREST) if mask_obj2 is not None else None
                     
                 # Parse masks based on EgoHOS class IDs
                 # twohands: 1=left, 2=right
@@ -204,5 +224,7 @@ class EgoHOSWrapper:
                     'left_obj': left_obj,
                     'right_obj': right_obj,
                     'two_obj': two_obj,
-                    'contact': contact
+                    'contact': contact,
+                    'scale': scales.get(idx, 1.0),
+                    'orig_shape': (orig_h, orig_w)
                 }
