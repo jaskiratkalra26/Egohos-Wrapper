@@ -13,17 +13,16 @@ else
     echo "EgoHOS directory already exists, skipping clone."
 fi
 
-# 2. Install PyTorch explicitly first (upgraded to 1.13.0+cu117 for Ada Lovelace / L4 GPU support)
-echo "Installing compatible PyTorch version..."
-pip install torch==1.13.0+cu117 torchvision==0.14.0+cu117 torchaudio==0.13.0 --extra-index-url https://download.pytorch.org/whl/cu117
-pip install nvidia-cuda-runtime-cu11
+# 2. Check PyTorch version
+echo "Checking PyTorch..."
+python -c "import torch" 2>/dev/null || pip install torch torchvision
 
 # 3. Install Python dependencies (with fixed numpy version to avoid np.bool crash)
 echo "Installing Python dependencies..."
 sed -i -E '/^(torch|torchvision)==/d' EgoHOS/requirements.txt
 pip install -r EgoHOS/requirements.txt
 pip install -U openmim
-pip install mmcv-full==1.7.0 -f https://download.openmmlab.com/mmcv/dist/cu117/torch1.13.0/index.html
+pip install mmcv-full==1.7.0 -f https://download.openmmlab.com/mmcv/dist/cu117/torch1.13.0/index.html || pip install mmcv-full==1.7.0 || pip install mmcv
 
 # 4. Install MMSegmentation
 echo "Installing MMSegmentation..."
