@@ -104,6 +104,10 @@ class EgoHOSWrapper:
                 # Fallback for Windows or if running locally without venv_egohos
                 python_exec = "python"
                 
+            predict_all_dst = self.mmseg_dir / "predict_all.py"
+            predict_all_src = self.egohos_repo_dir / "predict_all.py"
+            if not predict_all_dst.exists() and predict_all_src.exists():
+                shutil.copy(predict_all_src, predict_all_dst)
 
             commands = [
                 [python_exec, "predict_all.py",
