@@ -13,9 +13,9 @@ else
     echo "EgoHOS directory already exists, skipping clone."
 fi
 
-# 2. Check PyTorch version
-echo "Checking PyTorch..."
-python -c "import torch" 2>/dev/null || pip install torch torchvision
+# 2. Install PyTorch
+echo "Installing PyTorch 1.13.1 (CUDA 11.7)..."
+pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
 
 # 3. Install Python dependencies (with fixed numpy version to avoid np.bool crash)
 echo "Installing Python dependencies..."
