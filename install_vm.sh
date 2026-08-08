@@ -22,7 +22,8 @@ echo "Installing Python dependencies..."
 sed -i -E '/^(torch|torchvision)==/d' EgoHOS/requirements.txt
 pip install -r EgoHOS/requirements.txt
 pip install -U openmim
-pip install mmcv-full==1.7.0 -f https://download.openmmlab.com/mmcv/dist/cu117/torch1.13.0/index.html || pip install mmcv-full==1.7.0 || pip install mmcv
+pip install "setuptools<70.0.0" wheel Cython
+pip install --no-build-isolation mmcv-full==1.7.0 -f https://download.openmmlab.com/mmcv/dist/cu117/torch1.13.0/index.html || pip install --no-build-isolation mmcv-full==1.7.0 || pip install mmcv
 
 # 4. Install MMSegmentation
 echo "Installing MMSegmentation..."
