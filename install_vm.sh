@@ -32,6 +32,7 @@ sed -i "s/MMCV_MAX = .*/MMCV_MAX = '1.8.0'/g" mmseg/__init__.py
 sed -i "1s/^/import torch\n/" predict_image.py
 pip install -v -e .
 cd ../..
+cp predict_all.py EgoHOS/mmsegmentation/predict_all.py 2>/dev/null || true
 
 # CRITICAL: Force numpy downgrade at the very end so other packages don't sneakily upgrade it
 pip install "numpy<1.24.0"
