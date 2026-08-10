@@ -104,18 +104,11 @@ class EgoHOSWrapper:
                 # Fallback for Windows or if running locally without venv_egohos
                 python_exec = "python"
                 
-            predict_all_dst = self.mmseg_dir / "predict_all.py"
-            predict_all_src = self.egohos_repo_dir.parent / "predict_all.py"
-            if predict_all_src.exists():
-                shutil.copy(predict_all_src, predict_all_dst)
-
             commands = [
-                [python_exec, "predict_all.py",
-                 "--img_dir", str(frames_dir),
-                 "--cfg_twohands", self.cfg_twohands, "--ckpt_twohands", self.ckpt_twohands, "--out_twohands", str(out_twohands),
-                 "--cfg_cb", self.cfg_cb, "--ckpt_cb", self.ckpt_cb, "--out_cb", str(out_cb),
-                 "--cfg_obj1", self.cfg_obj1, "--ckpt_obj1", self.ckpt_obj1, "--out_obj1", str(out_obj1),
-                 "--cfg_obj2", self.cfg_obj2, "--ckpt_obj2", self.ckpt_obj2, "--out_obj2", str(out_obj2)]
+                [python_exec, "predict_image.py", "--config_file", self.cfg_twohands, "--checkpoint_file", self.ckpt_twohands, "--img_dir", str(frames_dir), "--pred_seg_dir", str(out_twohands)],
+                [python_exec, "predict_image.py", "--config_file", self.cfg_cb, "--checkpoint_file", self.ckpt_cb, "--img_dir", str(frames_dir), "--pred_seg_dir", str(out_cb)],
+                [python_exec, "predict_image.py", "--config_file", self.cfg_obj1, "--checkpoint_file", self.ckpt_obj1, "--img_dir", str(frames_dir), "--pred_seg_dir", str(out_obj1)],
+                [python_exec, "predict_image.py", "--config_file", self.cfg_obj2, "--checkpoint_file", self.ckpt_obj2, "--img_dir", str(frames_dir), "--pred_seg_dir", str(out_obj2)]
             ]
             
             env = os.environ.copy()
@@ -177,9 +170,22 @@ class EgoHOSWrapper:
                     env["LD_PRELOAD"] = f"{' '.join(preload)} {env.get('LD_PRELOAD', '')}".strip()
                     print(f"EgoHOSWrapper: Injected LD_PRELOAD with: {preload}")
 
-            # 1. Run all 4 models sequentially in a single process
+            # 1. Run twohands sequentially first (since others depend on it)
+            print("[EgoHOSWrapper] Running twohands model...")
             res = subprocess.run(commands[0], cwd=str(self.mmseg_dir), env=env)
-            if res.returncode != 0: raise RuntimeError("EgoHOS predict_all.py subprocess failed")
+            if res.returncode != 0: raise RuntimeError("EgoHOS twohands subprocess failed")
+            
+            # 2. Run cb, obj1, obj2 in parallel using subprocess
+            print("[EgoHOSWrapper] Running cb, obj1, obj2 models in parallel...")
+            processes = []
+            for cmd in commands[1:]:
+                p = subprocess.Popen(cmd, cwd=str(self.mmseg_dir), env=env)
+                processes.append(p)
+                
+            for p in processes:
+                p.wait()
+                if p.returncode != 0:
+                    raise RuntimeError(f"EgoHOS subprocess failed with return code {p.returncode}")
             
             # 3. Yield masks
             for idx in frame_indices:
