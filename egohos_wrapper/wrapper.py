@@ -106,7 +106,7 @@ class EgoHOSWrapper:
                 
             predict_all_dst = self.mmseg_dir / "predict_all.py"
             predict_all_src = self.egohos_repo_dir.parent / "predict_all.py"
-            if not predict_all_dst.exists() and predict_all_src.exists():
+            if predict_all_src.exists():
                 shutil.copy(predict_all_src, predict_all_dst)
 
             commands = [
