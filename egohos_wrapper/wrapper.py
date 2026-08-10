@@ -170,15 +170,20 @@ class EgoHOSWrapper:
                     env["LD_PRELOAD"] = f"{' '.join(preload)} {env.get('LD_PRELOAD', '')}".strip()
                     print(f"EgoHOSWrapper: Injected LD_PRELOAD with: {preload}")
 
-            # 1. Run twohands sequentially first (since others depend on it)
-            print("[EgoHOSWrapper] Running twohands model...")
-            res = subprocess.run(commands[0], cwd=str(self.mmseg_dir), env=env)
-            if res.returncode != 0: raise RuntimeError("EgoHOS twohands subprocess failed")
+            # Stage 1: twohands (generates pred_twohands)
+            print("[EgoHOSWrapper] Stage 1/3: Running twohands model...")
+            res1 = subprocess.run(commands[0], cwd=str(self.mmseg_dir), env=env)
+            if res1.returncode != 0: raise RuntimeError("EgoHOS twohands subprocess failed")
             
-            # 2. Run cb, obj1, obj2 in parallel using subprocess
-            print("[EgoHOSWrapper] Running cb, obj1, obj2 models in parallel...")
+            # Stage 2: cb (depends on pred_twohands, generates pred_cb)
+            print("[EgoHOSWrapper] Stage 2/3: Running cb model...")
+            res2 = subprocess.run(commands[1], cwd=str(self.mmseg_dir), env=env)
+            if res2.returncode != 0: raise RuntimeError("EgoHOS cb subprocess failed")
+
+            # Stage 3: obj1 and obj2 in parallel (both depend on pred_twohands and pred_cb)
+            print("[EgoHOSWrapper] Stage 3/3: Running obj1 and obj2 models in parallel...")
             processes = []
-            for cmd in commands[1:]:
+            for cmd in commands[2:]:
                 p = subprocess.Popen(cmd, cwd=str(self.mmseg_dir), env=env)
                 processes.append(p)
                 
