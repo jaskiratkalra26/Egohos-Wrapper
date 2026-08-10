@@ -55,33 +55,25 @@ def main():
     for name, (_, p) in out_dirs.items():
         p.mkdir(parents=True, exist_ok=True)
 
-    print(f"[EgoHOS predict_all] Step 1/4: Running twohands model on {len(img_paths)} frames...")
+    print(f"[EgoHOS predict_all] Pass 1: Generating twohands masks for {len(img_paths)} frames...")
     for img_path in img_paths:
         fname = Path(img_path).stem + ".png"
         result = inference_segmentor(model_twohands, img_path)
         mask = result[0].astype(np.uint8)
         cv2.imwrite(str(Path(args.out_twohands) / fname), mask)
 
-    print(f"[EgoHOS predict_all] Step 2/4: Running cb model on {len(img_paths)} frames...")
+    print(f"[EgoHOS predict_all] Pass 2: Generating cb, obj1, and obj2 masks for {len(img_paths)} frames...")
     for img_path in img_paths:
         fname = Path(img_path).stem + ".png"
-        result = inference_segmentor(model_cb, img_path)
-        mask = result[0].astype(np.uint8)
-        cv2.imwrite(str(Path(args.out_cb) / fname), mask)
+        
+        res_cb = inference_segmentor(model_cb, img_path)
+        cv2.imwrite(str(Path(args.out_cb) / fname), res_cb[0].astype(np.uint8))
 
-    print(f"[EgoHOS predict_all] Step 3/4: Running obj1 model on {len(img_paths)} frames...")
-    for img_path in img_paths:
-        fname = Path(img_path).stem + ".png"
-        result = inference_segmentor(model_obj1, img_path)
-        mask = result[0].astype(np.uint8)
-        cv2.imwrite(str(Path(args.out_obj1) / fname), mask)
+        res_obj1 = inference_segmentor(model_obj1, img_path)
+        cv2.imwrite(str(Path(args.out_obj1) / fname), res_obj1[0].astype(np.uint8))
 
-    print(f"[EgoHOS predict_all] Step 4/4: Running obj2 model on {len(img_paths)} frames...")
-    for img_path in img_paths:
-        fname = Path(img_path).stem + ".png"
-        result = inference_segmentor(model_obj2, img_path)
-        mask = result[0].astype(np.uint8)
-        cv2.imwrite(str(Path(args.out_obj2) / fname), mask)
+        res_obj2 = inference_segmentor(model_obj2, img_path)
+        cv2.imwrite(str(Path(args.out_obj2) / fname), res_obj2[0].astype(np.uint8))
 
     print("[EgoHOS predict_all] Done!")
 
