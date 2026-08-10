@@ -57,7 +57,7 @@ def main():
 
     print(f"[EgoHOS predict_all] Running inference on {len(img_paths)} frames...")
     for img_path in img_paths:
-        fname = Path(img_path).name
+        fname = Path(img_path).stem + ".png"
         for name, (model, out_path) in out_dirs.items():
             result = inference_segmentor(model, img_path)
             mask = result[0].astype(np.uint8)
